@@ -455,6 +455,7 @@ public:
   inline Time() = default;
   inline explicit Time(const std::string & raw_time_str);
   inline Time(uint16_t hours, uint16_t minutes, uint16_t seconds);
+  inline Time(size_t seconds);
   inline bool is_provided() const;
   inline size_t get_total_seconds() const;
   inline std::tuple<uint16_t, uint16_t, uint16_t> get_hh_mm_ss() const;
@@ -541,6 +542,16 @@ inline Time::Time(uint16_t hours, uint16_t minutes, uint16_t seconds)
   set_total_seconds();
   set_raw_time();
   time_is_provided = true;
+}
+
+inline Time::Time(size_t seconds)
+    : time_is_provided(true)
+    , total_seconds(seconds)
+    , hh(seconds / 3600)
+    , mm((seconds % 3600) / 60)
+    , ss(seconds % 3600)
+{
+  set_raw_time();
 }
 
 inline bool Time::is_provided() const { return time_is_provided; }
@@ -644,7 +655,7 @@ using CurrencyCode = std::string;
 using LanguageCode = std::string;
 
 // Helper enums for some GTFS fields ---------------------------------------------------------------
-enum class StopLocationType
+enum class StopLocationType : int8_t
 {
   StopOrPlatform = 0,
   Station = 1,
@@ -654,7 +665,7 @@ enum class StopLocationType
 };
 
 // The type of transportation used on a route.
-enum class RouteType
+enum class RouteType : int16_t
 {
   // GTFS route types
   Tram = 0,         // Tram, Streetcar, Light rail
@@ -752,20 +763,20 @@ enum class RouteType
   HorseDrawnCarriage = 1702
 };
 
-enum class TripDirectionId
+enum class TripDirectionId : bool
 {
   DefaultDirection = 0,  // e.g. outbound
   OppositeDirection = 1  // e.g. inbound
 };
 
-enum class TripAccess
+enum class TripAccess : int8_t
 {
   NoInfo = 0,
   Yes = 1,
   No = 2
 };
 
-enum class StopTimeBoarding
+enum class StopTimeBoarding : int8_t
 {
   RegularlyScheduled = 0,
   No = 1,                   // Not available
@@ -773,31 +784,31 @@ enum class StopTimeBoarding
   CoordinateWithDriver = 3  // Must coordinate with driver to arrange
 };
 
-enum class StopTimePoint
+enum class StopTimePoint : bool
 {
   Approximate = 0,
   Exact = 1
 };
 
-enum class CalendarAvailability
+enum class CalendarAvailability : bool
 {
   NotAvailable = 0,
   Available = 1
 };
 
-enum class CalendarDateException
+enum class CalendarDateException : int8_t
 {
   Added = 1,  // Service has been added for the specified date
   Removed = 2
 };
 
-enum class FarePayment
+enum class FarePayment : bool
 {
   OnBoard = 0,
   BeforeBoarding = 1  // Fare must be paid before boarding
 };
 
-enum class FareTransfers
+enum class FareTransfers : int8_t
 {
   No = 0,  // No transfers permitted on this fare
   Once = 1,
@@ -805,13 +816,13 @@ enum class FareTransfers
   Unlimited = 3
 };
 
-enum class FrequencyTripService
+enum class FrequencyTripService : bool
 {
   FrequencyBased = 0,  // Frequency-based trips
   ScheduleBased = 1    // Schedule-based trips with the exact same headway throughout the day
 };
 
-enum class TransferType
+enum class TransferType : int8_t
 {
   Recommended = 0,
   Timed = 1,
@@ -819,7 +830,7 @@ enum class TransferType
   NotPossible = 3
 };
 
-enum class PathwayMode
+enum class PathwayMode : int8_t
 {
   Walkway = 1,
   Stairs = 2,
@@ -830,13 +841,13 @@ enum class PathwayMode
   ExitGate = 7
 };
 
-enum class PathwayDirection
+enum class PathwayDirection : bool
 {
   Unidirectional = 0,
   Bidirectional = 1
 };
 
-enum class AttributionRole
+enum class AttributionRole : bool
 {
   No = 0,  // Organization doesn’t have this role
   Yes = 1  // Organization does have this role
@@ -888,7 +899,7 @@ struct Stop
   Text stop_code;
   Text stop_desc;
   Text stop_url;
-  StopLocationType location_type = StopLocationType::GenericNode;
+  StopLocationType location_type = StopLocationType::StopOrPlatform;
   Text stop_timezone;
   Text wheelchair_boarding;
   Id level_id;
@@ -998,6 +1009,14 @@ struct FareAttributesItem
   // Optional:
   size_t transfer_duration = 0;  // Length of time in seconds before a transfer expires
 };
+
+inline bool operator==(const FareAttributesItem & lhs, const FareAttributesItem & rhs)
+{
+  return std::tie(lhs.fare_id, lhs.price, lhs.currency_type, lhs.payment_method, lhs.transfers,
+                  lhs.agency_id, lhs.transfer_duration) ==
+         std::tie(rhs.fare_id, rhs.price, rhs.currency_type, rhs.payment_method, rhs.transfers,
+                  rhs.agency_id, rhs.transfer_duration);
+}
 
 // Optional dataset file
 struct FareRule
@@ -1340,6 +1359,7 @@ private:
   inline void write_translations(std::ofstream & out) const;
   inline void write_attributions(std::ofstream & out) const;
 
+protected:
   std::string gtfs_directory;
 
   Agencies agencies;
@@ -1840,7 +1860,7 @@ inline Result Feed::add_fare_attributes(const ParsedCsvRow & row)
 
     item.currency_type = row.at("currency_type");
     set_field(item.payment_method, row, "payment_method", false);
-    set_field(item.transfers, row, "transfers", false);
+    set_field(item.transfers, row, "transfers");
 
     // Conditionally optional:
     item.agency_id = get_value_or_default(row, "agency_id");
@@ -2778,9 +2798,12 @@ inline void Feed::write_fare_attributes(std::ofstream & out) const
   for (const auto & attribute : fare_attributes)
   {
     std::vector<std::string> fields{
-        wrap(attribute.fare_id),          wrap(attribute.price),     attribute.currency_type,
-        wrap(attribute.payment_method),   wrap(attribute.transfers), wrap(attribute.agency_id),
-        wrap(attribute.transfer_duration)};
+        wrap(attribute.fare_id), wrap(attribute.price), attribute.currency_type,
+        wrap(attribute.payment_method),
+        // Here we handle GTFS specification corner case: "The fact that this field can be left
+        // empty is an exception to the requirement that a Required field must not be empty.":
+        attribute.transfers == FareTransfers::Unlimited ? "" : wrap(attribute.transfers),
+        wrap(attribute.agency_id), wrap(attribute.transfer_duration)};
     write_joined(out, std::move(fields));
   }
 }
