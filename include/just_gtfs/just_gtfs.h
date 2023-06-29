@@ -1000,6 +1000,7 @@ struct CalendarItem
   // Required:
   Id service_id;
 
+  // TODO: store this as a mask?
   CalendarAvailability monday = CalendarAvailability::NotAvailable;
   CalendarAvailability tuesday = CalendarAvailability::NotAvailable;
   CalendarAvailability wednesday = CalendarAvailability::NotAvailable;
@@ -1019,6 +1020,24 @@ inline bool operator==(const CalendarItem & lhs, const CalendarItem & rhs)
          std::tie(rhs.service_id, rhs.monday, rhs.tuesday, rhs.wednesday, rhs.thursday,
                   rhs.friday, rhs.saturday, rhs.sunday, rhs.start_date, rhs.end_date);
 }
+
+uint8_t inline availability(const CalendarItem& c) {
+  return uint8_t(c.monday == gtfs::CalendarAvailability::Available) |
+         uint8_t(c.tuesday == gtfs::CalendarAvailability::Available) << 1 |
+         uint8_t(c.wednesday == gtfs::CalendarAvailability::Available) << 2 |
+         uint8_t(c.thursday == gtfs::CalendarAvailability::Available) << 3 |
+         uint8_t(c.friday == gtfs::CalendarAvailability::Available) << 4 |
+         uint8_t(c.saturday == gtfs::CalendarAvailability::Available) << 5 |
+         uint8_t(c.sunday == gtfs::CalendarAvailability::Available) << 6;
+}
+
+constexpr uint8_t Monday    = 0b00000001;
+constexpr uint8_t Tuesday   = 0b00000010;
+constexpr uint8_t Wednesday = 0b00000100;
+constexpr uint8_t Thursday  = 0b00001000;
+constexpr uint8_t Friday    = 0b00010000;
+constexpr uint8_t Saturday  = 0b00100000;
+constexpr uint8_t Sunday    = 0b01000000;
 
 // Conditionally required dataset file
 struct CalendarDate
