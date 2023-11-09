@@ -906,6 +906,18 @@ struct Stop
   Text platform_code;
 };
 
+inline bool operator==(const Stop & lhs, const Stop & rhs)
+{
+  return std::tie(lhs.stop_id, lhs.stop_name, lhs.coordinates_present, lhs.stop_lat,
+                  lhs.stop_lon, lhs.zone_id, lhs.parent_station, lhs.stop_code,
+                  lhs.stop_desc, lhs.stop_url, lhs.location_type, lhs.stop_timezone,
+                  lhs.wheelchair_boarding, lhs.level_id, lhs.platform_code) ==
+         std::tie(rhs.stop_id, rhs.stop_name, rhs.coordinates_present, rhs.stop_lat,
+                  rhs.stop_lon, rhs.zone_id, rhs.parent_station, rhs.stop_code,
+                  rhs.stop_desc, rhs.stop_url, rhs.location_type, rhs.stop_timezone,
+                  rhs.wheelchair_boarding, rhs.level_id, rhs.platform_code);
+}
+
 // Required dataset file
 struct Route
 {
@@ -926,6 +938,14 @@ struct Route
   size_t route_sort_order = 0;  // Routes with smaller value values should be displayed first
 };
 
+inline bool operator==(const Route & lhs, const Route & rhs)
+{
+  return std::tie(lhs.route_id, lhs.route_type, lhs.agency_id, lhs.route_short_name, lhs.route_long_name,
+                  lhs.route_desc, lhs.route_url, lhs.route_color, lhs.route_text_color, lhs.route_sort_order) ==
+         std::tie(rhs.route_id, rhs.route_type, rhs.agency_id, rhs.route_short_name, rhs.route_long_name,
+                  rhs.route_desc, rhs.route_url, rhs.route_color, rhs.route_text_color, rhs.route_sort_order);
+}
+
 // Required dataset file
 struct Trip
 {
@@ -943,6 +963,14 @@ struct Trip
   TripAccess wheelchair_accessible = TripAccess::NoInfo;
   TripAccess bikes_allowed = TripAccess::NoInfo;
 };
+
+inline bool operator==(const Trip & lhs, const Trip & rhs)
+{
+  return std::tie(lhs.route_id, lhs.service_id, lhs.trip_id, lhs.trip_headsign, lhs.trip_short_name,
+                  lhs.direction_id, lhs.block_id, lhs.shape_id, lhs.wheelchair_accessible, lhs.bikes_allowed) ==
+         std::tie(rhs.route_id, rhs.service_id, rhs.trip_id, rhs.trip_headsign, rhs.trip_short_name,
+                  rhs.direction_id, rhs.block_id, rhs.shape_id, rhs.wheelchair_accessible, rhs.bikes_allowed);
+}
 
 // Required dataset file
 struct StopTime
@@ -972,6 +1000,7 @@ struct CalendarItem
   // Required:
   Id service_id;
 
+  // TODO: store this as a mask?
   CalendarAvailability monday = CalendarAvailability::NotAvailable;
   CalendarAvailability tuesday = CalendarAvailability::NotAvailable;
   CalendarAvailability wednesday = CalendarAvailability::NotAvailable;
@@ -983,6 +1012,32 @@ struct CalendarItem
   Date start_date;
   Date end_date;
 };
+
+inline bool operator==(const CalendarItem & lhs, const CalendarItem & rhs)
+{
+  return std::tie(lhs.service_id, lhs.monday, lhs.tuesday, lhs.wednesday, lhs.thursday,
+                  lhs.friday, lhs.saturday, lhs.sunday, lhs.start_date, lhs.end_date) ==
+         std::tie(rhs.service_id, rhs.monday, rhs.tuesday, rhs.wednesday, rhs.thursday,
+                  rhs.friday, rhs.saturday, rhs.sunday, rhs.start_date, rhs.end_date);
+}
+
+uint8_t inline availability(const CalendarItem& c) {
+  return uint8_t(c.monday == gtfs::CalendarAvailability::Available) |
+         uint8_t(c.tuesday == gtfs::CalendarAvailability::Available) << 1 |
+         uint8_t(c.wednesday == gtfs::CalendarAvailability::Available) << 2 |
+         uint8_t(c.thursday == gtfs::CalendarAvailability::Available) << 3 |
+         uint8_t(c.friday == gtfs::CalendarAvailability::Available) << 4 |
+         uint8_t(c.saturday == gtfs::CalendarAvailability::Available) << 5 |
+         uint8_t(c.sunday == gtfs::CalendarAvailability::Available) << 6;
+}
+
+constexpr uint8_t Monday    = 0b00000001;
+constexpr uint8_t Tuesday   = 0b00000010;
+constexpr uint8_t Wednesday = 0b00000100;
+constexpr uint8_t Thursday  = 0b00001000;
+constexpr uint8_t Friday    = 0b00010000;
+constexpr uint8_t Saturday  = 0b00100000;
+constexpr uint8_t Sunday    = 0b01000000;
 
 // Conditionally required dataset file
 struct CalendarDate
@@ -1164,25 +1219,38 @@ struct Attribution
   Text attribution_phone;
 };
 
+template <typename T>
+bool valid(const T & v) {
+  static T invalid{};
+  return !(v == invalid);
+}
+
 // Main classes for working with GTFS feeds
 using Agencies = std::vector<Agency>;
 using Stops = std::vector<Stop>;
 using Routes = std::vector<Route>;
 using Trips = std::vector<Trip>;
 using StopTimes = std::vector<StopTime>;
+using StopTimesRange = std::pair<StopTimes::const_iterator, StopTimes::const_iterator>;
 using Calendar = std::vector<CalendarItem>;
 using CalendarDates = std::vector<CalendarDate>;
+using CalendarDatesRange = std::pair<CalendarDates::const_iterator, CalendarDates::const_iterator>;
 
 using FareRules = std::vector<FareRule>;
+using FareRulesRange = std::pair<FareRules::const_iterator, FareRules::const_iterator>;
 using FareAttributes = std::vector<FareAttributesItem>;
+using FareAttributesRange = std::pair<FareAttributes::const_iterator, FareAttributes::const_iterator>;
 using Shapes = std::vector<ShapePoint>;
-using Shape = std::vector<ShapePoint>;
+using ShapeRange = std::pair<Shapes::const_iterator, Shapes::const_iterator>;
 using Frequencies = std::vector<Frequency>;
+using FrequenciesRange = std::pair<Frequencies::const_iterator, Frequencies::const_iterator>;
 using Transfers = std::vector<Transfer>;
 using Pathways = std::vector<Pathway>;
+using PathwaysRange = std::pair<Pathways::const_iterator, Pathways::const_iterator>;
 using Levels = std::vector<Level>;
 // FeedInfo is a unique object and doesn't need a container.
 using Translations = std::vector<Translation>;
+using TranslationsRange = std::pair<Translations::const_iterator, Translations::const_iterator>;
 using Attributions = std::vector<Attribution>;
 
 using ParsedCsvRow = std::map<std::string, std::string>;
@@ -1200,28 +1268,28 @@ public:
   inline Result write_agencies(const std::string & gtfs_path) const;
 
   inline const Agencies & get_agencies() const;
-  inline std::optional<Agency> get_agency(const Id & agency_id) const;
+  inline const Agency & get_agency(const Id & agency_id) const;
   inline void add_agency(const Agency & agency);
 
   inline Result read_stops();
   inline Result write_stops(const std::string & gtfs_path) const;
 
   inline const Stops & get_stops() const;
-  inline std::optional<Stop> get_stop(const Id & stop_id) const;
+  inline const Stop & get_stop(const Id & stop_id) const;
   inline void add_stop(const Stop & stop);
 
   inline Result read_routes();
   inline Result write_routes(const std::string & gtfs_path) const;
 
   inline const Routes & get_routes() const;
-  inline std::optional<Route> get_route(const Id & route_id) const;
+  inline const Route & get_route(const Id & route_id) const;
   inline void add_route(const Route & route);
 
   inline Result read_trips();
   inline Result write_trips(const std::string & gtfs_path) const;
 
   inline const Trips & get_trips() const;
-  inline std::optional<Trip> get_trip(const Id & trip_id) const;
+  inline const Trip & get_trip(const Id & trip_id) const;
   inline void add_trip(const Trip & trip);
 
   inline Result read_stop_times();
@@ -1229,63 +1297,63 @@ public:
 
   inline const StopTimes & get_stop_times() const;
   inline StopTimes get_stop_times_for_stop(const Id & stop_id) const;
-  inline StopTimes get_stop_times_for_trip(const Id & trip_id, bool sort_by_sequence = true) const;
+  inline StopTimesRange get_stop_times_for_trip(const Id & trip_id) const;
   inline void add_stop_time(const StopTime & stop_time);
 
   inline Result read_calendar();
   inline Result write_calendar(const std::string & gtfs_path) const;
 
   inline const Calendar & get_calendar() const;
-  inline std::optional<CalendarItem> get_calendar(const Id & service_id) const;
+  inline const CalendarItem & get_calendar_item(const Id & service_id) const;
   inline void add_calendar_item(const CalendarItem & calendar_item);
 
   inline Result read_calendar_dates();
   inline Result write_calendar_dates(const std::string & gtfs_path) const;
 
   inline const CalendarDates & get_calendar_dates() const;
-  inline CalendarDates get_calendar_dates(const Id & service_id, bool sort_by_date = true) const;
+  inline CalendarDatesRange get_calendar_dates(const Id & service_id) const;
   inline void add_calendar_date(const CalendarDate & calendar_date);
 
   inline Result read_fare_rules();
   inline Result write_fare_rules(const std::string & gtfs_path) const;
 
   inline const FareRules & get_fare_rules() const;
-  inline FareRules get_fare_rules(const Id & fare_id) const;
+  inline FareRulesRange get_fare_rules(const Id & fare_id) const;
   inline void add_fare_rule(const FareRule & fare_rule);
 
   inline Result read_fare_attributes();
   inline Result write_fare_attributes(const std::string & gtfs_path) const;
 
   inline const FareAttributes & get_fare_attributes() const;
-  inline FareAttributes get_fare_attributes(const Id & fare_id) const;
+  inline FareAttributesRange get_fare_attributes(const Id & fare_id) const;
   inline void add_fare_attributes(const FareAttributesItem & fare_attributes_item);
 
   inline Result read_shapes();
   inline Result write_shapes(const std::string & gtfs_path) const;
 
   inline const Shapes & get_shapes() const;
-  inline Shape get_shape(const Id & shape_id, bool sort_by_sequence = true) const;
+  inline ShapeRange get_shape(const Id & shape_id) const;
   inline void add_shape(const ShapePoint & shape);
 
   inline Result read_frequencies();
   inline Result write_frequencies(const std::string & gtfs_path) const;
 
   inline const Frequencies & get_frequencies() const;
-  inline Frequencies get_frequencies(const Id & trip_id) const;
+  inline FrequenciesRange get_frequencies(const Id & trip_id) const;
   inline void add_frequency(const Frequency & frequency);
 
   inline Result read_transfers();
   inline Result write_transfers(const std::string & gtfs_path) const;
 
   inline const Transfers & get_transfers() const;
-  inline std::optional<Transfer> get_transfer(const Id & from_stop_id, const Id & to_stop_id) const;
+  inline const Transfer & get_transfer(const Id & from_stop_id, const Id & to_stop_id) const;
   inline void add_transfer(const Transfer & transfer);
 
   inline Result read_pathways();
   inline Result write_pathways(const std::string & gtfs_path) const;
 
   inline const Pathways & get_pathways() const;
-  inline Pathways get_pathways(const Id & pathway_id) const;
+  inline PathwaysRange get_pathways(const Id & pathway_id) const;
   inline Pathways get_pathways(const Id & from_stop_id, const Id & to_stop_id) const;
   inline void add_pathway(const Pathway & pathway);
 
@@ -1293,7 +1361,7 @@ public:
   inline Result write_levels(const std::string & gtfs_path) const;
 
   inline const Levels & get_levels() const;
-  inline std::optional<Level> get_level(const Id & level_id) const;
+  inline const Level & get_level(const Id & level_id) const;
   inline void add_level(const Level & level);
 
   inline Result read_feed_info();
@@ -1306,7 +1374,7 @@ public:
   inline Result write_translations(const std::string & gtfs_path) const;
 
   inline const Translations & get_translations() const;
-  inline Translations get_translations(const Text & table_name) const;
+  inline TranslationsRange get_translations(const Text & table_name) const;
   inline void add_translation(const Translation & translation);
 
   inline Result read_attributions();
@@ -1372,7 +1440,7 @@ protected:
   CalendarDates calendar_dates;
   FareRules fare_rules;
   FareAttributes fare_attributes;
-  Shape shapes;
+  Shapes shapes;
   Frequencies frequencies;
   Transfers transfers;
   Pathways pathways;
@@ -1444,6 +1512,42 @@ inline Result Feed::read_feed()
 
   if (auto res = read_translations(); ErrorParsingOptionalFile(res))
     return res;
+
+  // we sort all the vectors by id for faster look up later on
+  std::sort(agencies.begin(), agencies.end(),
+            [](const auto & a, const auto & b) { return a.agency_id < b.agency_id; });
+  std::sort(stops.begin(), stops.end(),
+            [](const auto & a, const auto & b) { return a.stop_id < b.stop_id; });
+  std::sort(routes.begin(), routes.end(),
+            [](const auto & a, const auto & b) { return a.route_id < b.route_id; });
+  std::sort(trips.begin(), trips.end(),
+            [](const auto & a, const auto & b) { return a.trip_id < b.trip_id; });
+  std::sort(stop_times.begin(), stop_times.end(),
+            [](const auto & a, const auto & b)
+            { return a.trip_id < b.trip_id || (a.trip_id == b.trip_id && a.stop_sequence < b.stop_sequence); }); // could also sort on stop_id
+  std::sort(calendar.begin(), calendar.end(),
+            [](const auto & a, const auto & b) { return a.service_id < b.service_id; });
+  std::sort(calendar_dates.begin(), calendar_dates.end(),
+            [](const auto & a, const auto & b)
+            { return a.service_id < b.service_id || (a.service_id == b.service_id && a.date.get_raw_date() < b.date.get_raw_date()); });
+  std::sort(shapes.begin(), shapes.end(),
+            [](const auto & a, const auto & b)
+            { return a.shape_id < b.shape_id || (a.shape_id == b.shape_id && a.shape_pt_sequence < b.shape_pt_sequence); });
+  std::sort(transfers.begin(), transfers.end(),
+            [](const auto & a, const auto & b)
+            { return a.from_stop_id < b.from_stop_id || (a.from_stop_id == b.from_stop_id && a.to_stop_id < b.to_stop_id); });
+  std::sort(frequencies.begin(), frequencies.end(),
+            [](const auto & a, const auto & b) { return a.trip_id < b.trip_id; });
+  std::sort(fare_attributes.begin(), fare_attributes.end(),
+            [](const auto & a, const auto & b) { return a.fare_id < b.fare_id; });
+  std::sort(fare_rules.begin(), fare_rules.end(),
+            [](const auto & a, const auto & b) { return a.fare_id < b.fare_id; });
+  std::sort(pathways.begin(), pathways.end(),
+            [](const auto & a, const auto & b) { return a.pathway_id < b.pathway_id; }); // could sort on to/from_stop_ids
+  std::sort(levels.begin(), levels.end(),
+            [](const auto & a, const auto & b) { return a.level_id < b.level_id; });
+  std::sort(translations.begin(), translations.end(),
+            [](const auto & a, const auto & b) { return a.table_name < b.table_name; });
 
   return ResultCode::OK;
 }
@@ -2162,7 +2266,7 @@ inline Result Feed::write_agencies(const std::string & gtfs_path) const
 
 inline const Agencies & Feed::get_agencies() const { return agencies; }
 
-inline std::optional<Agency> Feed::get_agency(const Id & agency_id) const
+inline const Agency & Feed::get_agency(const Id & agency_id) const
 {
   // agency id is required when the dataset contains data for multiple agencies,
   // otherwise it is optional:
@@ -2170,11 +2274,13 @@ inline std::optional<Agency> Feed::get_agency(const Id & agency_id) const
     return agencies[0];
 
   const auto it =
-      std::find_if(agencies.begin(), agencies.end(),
-                   [&agency_id](const Agency & agency) { return agency.agency_id == agency_id; });
-
-  if (it == agencies.end())
-    return std::nullopt;
+      std::lower_bound(agencies.begin(), agencies.end(), agency_id,
+                                          [](const auto & a, const Id & i){ return a.agency_id < i;});
+  if (it == agencies.end() || it->agency_id != agency_id)
+  {
+    static Agency invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2195,13 +2301,17 @@ inline Result Feed::write_stops(const std::string & gtfs_path) const
 
 inline const Stops & Feed::get_stops() const { return stops; }
 
-inline std::optional<Stop> Feed::get_stop(const Id & stop_id) const
+inline const Stop & Feed::get_stop(const Id & stop_id) const
 {
-  const auto it = std::find_if(stops.begin(), stops.end(),
-                               [&stop_id](const Stop & stop) { return stop.stop_id == stop_id; });
+  const auto it =
+                         std::lower_bound(stops.begin(), stops.end(),
+                                          stop_id, [](const auto & a, const Id & i){ return a.stop_id < i;});
 
-  if (it == stops.end())
-    return std::nullopt;
+  if (it == stops.end() || it->stop_id != stop_id)
+  {
+    static Stop invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2222,14 +2332,17 @@ inline Result Feed::write_routes(const std::string & gtfs_path) const
 
 inline const Routes & Feed::get_routes() const { return routes; }
 
-inline std::optional<Route> Feed::get_route(const Id & route_id) const
+inline const Route & Feed::get_route(const Id & route_id) const
 {
-  const auto it = std::find_if(routes.begin(), routes.end(), [&route_id](const Route & route) {
-    return route.route_id == route_id;
-  });
+  const auto it =
+                         std::lower_bound(routes.begin(), routes.end(), route_id,
+                                          [](const auto & a, const Id & i){ return a.route_id < i;});
 
-  if (it == routes.end())
-    return std::nullopt;
+  if (it == routes.end() || it->route_id != route_id)
+  {
+    static Route invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2250,13 +2363,17 @@ inline Result Feed::write_trips(const std::string & gtfs_path) const
 
 inline const Trips & Feed::get_trips() const { return trips; }
 
-inline std::optional<Trip> Feed::get_trip(const Id & trip_id) const
+inline const Trip & Feed::get_trip(const Id & trip_id) const
 {
-  const auto it = std::find_if(trips.begin(), trips.end(),
-                               [&trip_id](const Trip & trip) { return trip.trip_id == trip_id; });
+  const auto it =
+                         std::lower_bound(trips.begin(), trips.end(), trip_id,
+                                          [](const auto & a, const Id & i){ return a.trip_id < i;});
 
-  if (it == trips.end())
-    return std::nullopt;
+  if (it == trips.end() || it->trip_id != trip_id)
+  {
+    static Trip invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2288,21 +2405,13 @@ inline StopTimes Feed::get_stop_times_for_stop(const Id & stop_id) const
   return res;
 }
 
-inline StopTimes Feed::get_stop_times_for_trip(const Id & trip_id, bool sort_by_sequence) const
+inline StopTimesRange Feed::get_stop_times_for_trip(const Id & trip_id) const
 {
-  StopTimes res;
-  for (const auto & stop_time : stop_times)
-  {
-    if (stop_time.trip_id == trip_id)
-      res.emplace_back(stop_time);
-  }
-  if (sort_by_sequence)
-  {
-    std::sort(res.begin(), res.end(), [](const StopTime & t1, const StopTime & t2) {
-      return t1.stop_sequence < t2.stop_sequence;
-    });
-  }
-  return res;
+  const auto start = std::lower_bound(stop_times.begin(), stop_times.end(), trip_id,
+                                          [](const auto & a, const Id & i){ return a.trip_id < i; });
+  const auto end = std::upper_bound(start, stop_times.end(), trip_id,
+                                      [](const Id & i, const auto & a){ return i < a.trip_id; });
+  return {start, end};
 }
 
 inline void Feed::add_stop_time(const StopTime & stop_time) { stop_times.emplace_back(stop_time); }
@@ -2321,15 +2430,17 @@ inline Result Feed::write_calendar(const std::string & gtfs_path) const
 
 inline const Calendar & Feed::get_calendar() const { return calendar; }
 
-inline std::optional<CalendarItem> Feed::get_calendar(const Id & service_id) const
+inline const CalendarItem & Feed::get_calendar_item(const Id & service_id) const
 {
-  const auto it = std::find_if(calendar.begin(), calendar.end(),
-                               [&service_id](const CalendarItem & calendar_item) {
-                                 return calendar_item.service_id == service_id;
-                               });
+  const auto it =
+                         std::lower_bound(calendar.begin(), calendar.end(), service_id,
+                                          [](const auto & a, const Id & i){ return a.service_id < i; });
 
-  if (it == calendar.end())
-    return std::nullopt;
+  if (it == calendar.end() || it->service_id != service_id)
+  {
+    static CalendarItem invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2353,23 +2464,13 @@ inline Result Feed::write_calendar_dates(const std::string & gtfs_path) const
 
 inline const CalendarDates & Feed::get_calendar_dates() const { return calendar_dates; }
 
-inline CalendarDates Feed::get_calendar_dates(const Id & service_id, bool sort_by_date) const
+inline CalendarDatesRange Feed::get_calendar_dates(const Id & service_id) const
 {
-  CalendarDates res;
-  for (const auto & calendar_date : calendar_dates)
-  {
-    if (calendar_date.service_id == service_id)
-      res.emplace_back(calendar_date);
-  }
-
-  if (sort_by_date)
-  {
-    std::sort(res.begin(), res.end(), [](const CalendarDate & d1, const CalendarDate & d2) {
-      return d1.date.get_raw_date() < d2.date.get_raw_date();
-    });
-  }
-
-  return res;
+  auto start = std::lower_bound(calendar_dates.begin(), calendar_dates.end(), service_id,
+                                   [](const auto & a, const Id & i){ return a.service_id < i; });
+  auto end = std::upper_bound(start, calendar_dates.end(), service_id,
+                             [](const Id & i, const auto & a){ return i < a.service_id; });
+  return {start, end};
 }
 
 inline void Feed::add_calendar_date(const CalendarDate & calendar_date)
@@ -2391,16 +2492,14 @@ inline Result Feed::write_fare_rules(const std::string & gtfs_path) const
 
 inline const FareRules & Feed::get_fare_rules() const { return fare_rules; }
 
-inline FareRules Feed::get_fare_rules(const Id & fare_id) const
+inline FareRulesRange Feed::get_fare_rules(const Id & fare_id) const
 {
-  FareRules res;
-  for (const auto & fare_rule : fare_rules)
-  {
-    if (fare_rule.fare_id == fare_id)
-      res.emplace_back(fare_rule);
-  }
 
-  return res;
+  auto start = std::lower_bound(fare_rules.begin(), fare_rules.end(), fare_id,
+                             [](const auto & a, const Id & i){ return a.fare_id < i; });
+  auto end = std::upper_bound(start, fare_rules.end(), fare_id,
+                                [](const Id & i, const auto & a){ return i < a.fare_id; });
+  return {start, end};
 }
 
 inline void Feed::add_fare_rule(const FareRule & fare_rule) { fare_rules.emplace_back(fare_rule); }
@@ -2419,16 +2518,13 @@ inline Result Feed::write_fare_attributes(const std::string & gtfs_path) const
 
 inline const FareAttributes & Feed::get_fare_attributes() const { return fare_attributes; }
 
-FareAttributes Feed::get_fare_attributes(const Id & fare_id) const
+FareAttributesRange Feed::get_fare_attributes(const Id & fare_id) const
 {
-  FareAttributes res;
-  for (const auto & attributes : fare_attributes)
-  {
-    if (attributes.fare_id == fare_id)
-      res.emplace_back(attributes);
-  }
-
-  return res;
+  auto start = std::lower_bound(fare_attributes.begin(), fare_attributes.end(), fare_id,
+                             [](const auto & a, const Id & i){ return a.fare_id < i; });
+  auto end = std::upper_bound(start, fare_attributes.end(), fare_id,
+                                [](const Id & i, const auto & a){ return i < a.fare_id; });
+  return {start, end};
 }
 
 inline void Feed::add_fare_attributes(const FareAttributesItem & fare_attributes_item)
@@ -2450,21 +2546,13 @@ inline Result Feed::write_shapes(const std::string & gtfs_path) const
 
 inline const Shapes & Feed::get_shapes() const { return shapes; }
 
-inline Shape Feed::get_shape(const Id & shape_id, bool sort_by_sequence) const
+inline ShapeRange Feed::get_shape(const Id & shape_id) const
 {
-  Shape res;
-  for (const auto & shape : shapes)
-  {
-    if (shape.shape_id == shape_id)
-      res.emplace_back(shape);
-  }
-  if (sort_by_sequence)
-  {
-    std::sort(res.begin(), res.end(), [](const ShapePoint & s1, const ShapePoint & s2) {
-      return s1.shape_pt_sequence < s2.shape_pt_sequence;
-    });
-  }
-  return res;
+  auto start = std::lower_bound(shapes.begin(), shapes.end(), shape_id,
+                             [](const auto & a, const Id & i){ return a.shape_id < i; });
+  auto end = std::upper_bound(start, shapes.end(), shape_id,
+                             [](const Id & i, const auto & a){ return i < a.shape_id; });
+  return {start, end};
 }
 
 inline void Feed::add_shape(const ShapePoint & shape) { shapes.emplace_back(shape); }
@@ -2483,15 +2571,13 @@ inline Result Feed::write_frequencies(const std::string & gtfs_path) const
 
 inline const Frequencies & Feed::get_frequencies() const { return frequencies; }
 
-inline Frequencies Feed::get_frequencies(const Id & trip_id) const
+inline FrequenciesRange Feed::get_frequencies(const Id & trip_id) const
 {
-  Frequencies res;
-  for (const auto & frequency : frequencies)
-  {
-    if (frequency.trip_id == trip_id)
-      res.emplace_back(frequency);
-  }
-  return res;
+  auto start = std::lower_bound(frequencies.begin(), frequencies.end(), trip_id,
+                             [](const auto & a, const Id & i){ return a.trip_id < i; });
+  auto end = std::upper_bound(start, frequencies.end(), trip_id,
+                                [](const Id & i, const auto & a){ return i < a.trip_id; });
+  return {start, end};
 }
 
 inline void Feed::add_frequency(const Frequency & frequency) { frequencies.emplace_back(frequency); }
@@ -2510,16 +2596,19 @@ inline Result Feed::write_transfers(const std::string & gtfs_path) const
 
 inline const Transfers & Feed::get_transfers() const { return transfers; }
 
-inline std::optional<Transfer> Feed::get_transfer(const Id & from_stop_id,
+inline const Transfer & Feed::get_transfer(const Id & from_stop_id,
                                                   const Id & to_stop_id) const
 {
-  const auto it = std::find_if(
-      transfers.begin(), transfers.end(), [&from_stop_id, &to_stop_id](const Transfer & transfer) {
-        return transfer.from_stop_id == from_stop_id && transfer.to_stop_id == to_stop_id;
-      });
+  const auto it =
+                         std::lower_bound(transfers.begin(), transfers.end(), "",
+                                          [&](const auto & a, const Id & i)
+                                          { return a.from_stop_id < from_stop_id || (a.from_stop_id == from_stop_id && a.to_stop_id < to_stop_id); });
 
-  if (it == transfers.end())
-    return std::nullopt;
+  if (it == transfers.end() || it->from_stop_id != it->from_stop_id || it->to_stop_id != to_stop_id)
+  {
+    static Transfer invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2540,15 +2629,13 @@ inline Result Feed::write_pathways(const std::string & gtfs_path) const
 
 inline const Pathways & Feed::get_pathways() const { return pathways; }
 
-inline Pathways Feed::get_pathways(const Id & pathway_id) const
+inline PathwaysRange Feed::get_pathways(const Id & pathway_id) const
 {
-  Pathways res;
-  for (const auto & path : pathways)
-  {
-    if (path.pathway_id == pathway_id)
-      res.emplace_back(path);
-  }
-  return res;
+  auto start = std::lower_bound(pathways.begin(), pathways.end(), pathway_id,
+                             [](const auto & a, const Id & i){ return a.pathway_id < i; });
+  auto end = std::upper_bound(start, pathways.end(), pathway_id,
+                                [](const Id & i, const auto & a){ return i < a.pathway_id; });
+  return {start, end};
 }
 
 inline Pathways Feed::get_pathways(const Id & from_stop_id, const Id & to_stop_id) const
@@ -2578,14 +2665,17 @@ inline Result Feed::write_levels(const std::string & gtfs_path) const
 
 inline const Levels & Feed::get_levels() const { return levels; }
 
-inline std::optional<Level> Feed::get_level(const Id & level_id) const
+inline const Level & Feed::get_level(const Id & level_id) const
 {
-  const auto it = std::find_if(levels.begin(), levels.end(), [&level_id](const Level & level) {
-    return level.level_id == level_id;
-  });
+  const auto it =
+                         std::lower_bound(levels.begin(), levels.end(), level_id,
+                                          [&](const auto & a, const Id & i) { return a.level_id < i; });
 
-  if (it == levels.end())
-    return std::nullopt;
+  if (it == levels.end() || it->level_id != level_id)
+  {
+    static Level invalid;
+    return invalid;
+  }
 
   return *it;
 }
@@ -2622,15 +2712,13 @@ inline Result Feed::write_translations(const std::string & gtfs_path) const
 
 inline const Translations & Feed::get_translations() const { return translations; }
 
-inline Translations Feed::get_translations(const Text & table_name) const
+inline TranslationsRange Feed::get_translations(const Text & table_name) const
 {
-  Translations res;
-  for (const auto & translation : translations)
-  {
-    if (translation.table_name == table_name)
-      res.emplace_back(translation);
-  }
-  return res;
+  auto start = std::lower_bound(translations.begin(), translations.end(), table_name,
+                             [](const auto & a, const Id & i){ return a.table_name < i; });
+  auto end = std::upper_bound(start, translations.end(), table_name,
+                             [](const Id & i, const auto & a){ return i < a.table_name; });
+  return {start, end};
 }
 
 inline void Feed::add_translation(const Translation & translation)
