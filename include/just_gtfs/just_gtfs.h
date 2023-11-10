@@ -1261,38 +1261,35 @@ public:
   inline Feed() = default;
   inline explicit Feed(const std::string & gtfs_path);
 
-  inline Result read_feed();
+  // 'strict' flag is used to interrupt feed parsing in case of absence or errors in
+  // required files. If you want to read incomplete feed, set it to false.
+  inline Result read_feed(bool strict=true);
   inline Result write_feed(const std::string & gtfs_path) const;
 
-  inline Result read_agencies();
   inline Result write_agencies(const std::string & gtfs_path) const;
 
   inline const Agencies & get_agencies() const;
   inline const Agency & get_agency(const Id & agency_id) const;
   inline void add_agency(const Agency & agency);
 
-  inline Result read_stops();
   inline Result write_stops(const std::string & gtfs_path) const;
 
   inline const Stops & get_stops() const;
   inline const Stop & get_stop(const Id & stop_id) const;
   inline void add_stop(const Stop & stop);
 
-  inline Result read_routes();
   inline Result write_routes(const std::string & gtfs_path) const;
 
   inline const Routes & get_routes() const;
   inline const Route & get_route(const Id & route_id) const;
   inline void add_route(const Route & route);
 
-  inline Result read_trips();
   inline Result write_trips(const std::string & gtfs_path) const;
 
   inline const Trips & get_trips() const;
   inline const Trip & get_trip(const Id & trip_id) const;
   inline void add_trip(const Trip & trip);
 
-  inline Result read_stop_times();
   inline Result write_stop_times(const std::string & gtfs_path) const;
 
   inline const StopTimes & get_stop_times() const;
@@ -1300,56 +1297,48 @@ public:
   inline StopTimesRange get_stop_times_for_trip(const Id & trip_id) const;
   inline void add_stop_time(const StopTime & stop_time);
 
-  inline Result read_calendar();
   inline Result write_calendar(const std::string & gtfs_path) const;
 
   inline const Calendar & get_calendar() const;
   inline const CalendarItem & get_calendar_item(const Id & service_id) const;
   inline void add_calendar_item(const CalendarItem & calendar_item);
 
-  inline Result read_calendar_dates();
   inline Result write_calendar_dates(const std::string & gtfs_path) const;
 
   inline const CalendarDates & get_calendar_dates() const;
   inline CalendarDatesRange get_calendar_dates(const Id & service_id) const;
   inline void add_calendar_date(const CalendarDate & calendar_date);
 
-  inline Result read_fare_rules();
   inline Result write_fare_rules(const std::string & gtfs_path) const;
 
   inline const FareRules & get_fare_rules() const;
   inline FareRulesRange get_fare_rules(const Id & fare_id) const;
   inline void add_fare_rule(const FareRule & fare_rule);
 
-  inline Result read_fare_attributes();
   inline Result write_fare_attributes(const std::string & gtfs_path) const;
 
   inline const FareAttributes & get_fare_attributes() const;
   inline FareAttributesRange get_fare_attributes(const Id & fare_id) const;
   inline void add_fare_attributes(const FareAttributesItem & fare_attributes_item);
 
-  inline Result read_shapes();
   inline Result write_shapes(const std::string & gtfs_path) const;
 
   inline const Shapes & get_shapes() const;
   inline ShapeRange get_shape(const Id & shape_id) const;
   inline void add_shape(const ShapePoint & shape);
 
-  inline Result read_frequencies();
   inline Result write_frequencies(const std::string & gtfs_path) const;
 
   inline const Frequencies & get_frequencies() const;
   inline FrequenciesRange get_frequencies(const Id & trip_id) const;
   inline void add_frequency(const Frequency & frequency);
 
-  inline Result read_transfers();
   inline Result write_transfers(const std::string & gtfs_path) const;
 
   inline const Transfers & get_transfers() const;
   inline const Transfer & get_transfer(const Id & from_stop_id, const Id & to_stop_id) const;
   inline void add_transfer(const Transfer & transfer);
 
-  inline Result read_pathways();
   inline Result write_pathways(const std::string & gtfs_path) const;
 
   inline const Pathways & get_pathways() const;
@@ -1357,27 +1346,23 @@ public:
   inline Pathways get_pathways(const Id & from_stop_id, const Id & to_stop_id) const;
   inline void add_pathway(const Pathway & pathway);
 
-  inline Result read_levels();
   inline Result write_levels(const std::string & gtfs_path) const;
 
   inline const Levels & get_levels() const;
   inline const Level & get_level(const Id & level_id) const;
   inline void add_level(const Level & level);
 
-  inline Result read_feed_info();
   inline Result write_feed_info(const std::string & gtfs_path) const;
 
   inline FeedInfo get_feed_info() const;
   inline void set_feed_info(const FeedInfo & feed_info);
 
-  inline Result read_translations();
   inline Result write_translations(const std::string & gtfs_path) const;
 
   inline const Translations & get_translations() const;
   inline TranslationsRange get_translations(const Text & table_name) const;
   inline void add_translation(const Translation & translation);
 
-  inline Result read_attributions();
   inline Result write_attributions(const std::string & gtfs_path) const;
 
   inline const Attributions & get_attributions() const;
@@ -1408,6 +1393,24 @@ private:
   inline Result add_feed_info(const ParsedCsvRow & row);
   inline Result add_translation(const ParsedCsvRow & row);
   inline Result add_attribution(const ParsedCsvRow & row);
+
+  inline Result read_agencies();
+  inline Result read_stops();
+  inline Result read_routes();
+  inline Result read_trips();
+  inline Result read_stop_times();
+  inline Result read_calendar();
+  inline Result read_calendar_dates();
+  inline Result read_fare_rules();
+  inline Result read_fare_attributes();
+  inline Result read_shapes();
+  inline Result read_frequencies();
+  inline Result read_transfers();
+  inline Result read_pathways();
+  inline Result read_levels();
+  inline Result read_feed_info();
+  inline Result read_translations();
+  inline Result read_attributions();
 
   inline void write_agencies(std::ofstream & out) const;
   inline void write_routes(std::ofstream & out) const;
@@ -1457,22 +1460,22 @@ inline bool ErrorParsingOptionalFile(const Result & res)
   return res != ResultCode::OK && res != ResultCode::ERROR_FILE_ABSENT;
 }
 
-inline Result Feed::read_feed()
+inline Result Feed::read_feed(bool strict)
 {
   // Read required files:
-  if (auto res = read_agencies(); res != ResultCode::OK)
+  if (auto res = read_agencies(); strict && res != ResultCode::OK)
     return res;
 
-  if (auto res = read_stops(); res != ResultCode::OK)
+  if (auto res = read_stops(); strict && res != ResultCode::OK)
     return res;
 
-  if (auto res = read_routes(); res != ResultCode::OK)
+  if (auto res = read_routes(); strict && res != ResultCode::OK)
     return res;
 
-  if (auto res = read_trips(); res != ResultCode::OK)
+  if (auto res = read_trips(); strict && res != ResultCode::OK)
     return res;
 
-  if (auto res = read_stop_times(); res != ResultCode::OK)
+  if (auto res = read_stop_times(); strict && res != ResultCode::OK)
     return res;
 
   // Read conditionally required files:
@@ -2601,7 +2604,7 @@ inline const Transfer & Feed::get_transfer(const Id & from_stop_id,
 {
   const auto it =
                          std::lower_bound(transfers.begin(), transfers.end(), "",
-                                          [&](const auto & a, const Id & i)
+                                          [&](const auto & a, const Id & )
                                           { return a.from_stop_id < from_stop_id || (a.from_stop_id == from_stop_id && a.to_stop_id < to_stop_id); });
 
   if (it == transfers.end() || it->from_stop_id != it->from_stop_id || it->to_stop_id != to_stop_id)

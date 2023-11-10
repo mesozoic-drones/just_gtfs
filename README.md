@@ -33,26 +33,20 @@ Its main features:
 Library provides main class for working with GTFS feeds: `gtfs::Feed`. It also provides classes for each of the 17 GTFS entities: `Route`, `Stop`, `Pathway`, `Translation` and others.
 GTFS csv files are mapped to the corresponding C++ classes. Every GTFS entity can be accessed through `gtfs::Feed` corresponding getters & setters.
 
-:pushpin: All GTFS entities are managed in the same way. So here is the example for working with `agencies`.
-
-Method of the `Feed` class for reading `agency.txt`:
+Method for reading GTFS feed. Path to the feed is specified in the `Feed` constructor:
 ```c++
-Result read_agencies()
+Result read_feed(strict=true)
 ```
-
-Method for reading reading not only agencies but all GTFS entities. Path to the feed is specified in the `Feed` constructor:
-```c++
-Result read_feed()
-```
+Flag `strict` is used to interrupt feed parsing in case of absence or errors in required GTFS files. If you want to read incomplete feed, set it to `false`.
 
 Method for getting reference to the `Agencies` - `std::vector` of all `Agency` objects of the feed:
 ```c++
 const Agencies & get_agencies()
 ```
 
-Method for finding agency by its id. Returns `std::optional` so you should check if the result is `std::nullopt`:
+Method for finding agency by its id. Returns `Agency` so you should check if the result struct is empty:
 ```c++
-std::optional<Agency> get_agency(const Id & agency_id)
+const & Agency get_agency(const Id & agency_id)
 ``` 
 
 Method for adding agency to the feed:
@@ -79,7 +73,7 @@ StopTimes get_stop_times_for_stop(const Id & stop_id)
 
 Or you can find stop times for the particular trip:
 ```c++
-StopTimes get_stop_times_for_trip(const Id & trip_id, bool sort_by_sequence = true)
+StopTimesRange get_stop_times_for_trip(const Id & trip_id, bool sort_by_sequence = true)
 ```
 
 ### Example of reading GTFS feed and working with its stops and routes
@@ -110,7 +104,7 @@ GTFS feed can be wholly read from directory as in the example above or you can r
 :pushpin: Read only `shapes.txt` from the feed and work with shapes:
 ```c++
 Feed feed("~/data/SFMTA/");
-if (feed.read_shapes() == ResultCode::OK)
+if (feed.read_feed() == ResultCode::OK)
 {
   Shapes all_shapes = feed.get_shapes();
   Shape shape = feed.get_shape("9367");
